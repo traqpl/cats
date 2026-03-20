@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Purr &amp; Care</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="toolbar">
+  <span class="title">🐱 PURR &amp; CARE</span>
+  <div class="controls">
+    <span id="speedLabel"></span>
+    <button id="muteBtn" title="Mute / Unmute">♫</button>
+  </div>
+</div>
+
+<div style="position:relative;">
+  <canvas id="gameCanvas" width="800" height="590"></canvas>
+  <div id="loading">
+    <div class="spinner"></div>
+    Loading…
+  </div>
+</div>
+
+<p id="hint">P — pause &nbsp;|&nbsp; S — speed &nbsp;|&nbsp; Q — quit to menu &nbsp;|&nbsp; click to interact</p>
+
+<script src="wasm_exec.js"></script>
+<script>
+// ── WASM loader ──────────────────────────────────────────────────────────────
+const go = new Go();
+WebAssembly.instantiateStreaming(fetch("game.wasm"), go.importObject).then(r => {
+  document.getElementById("loading").style.display = "none";
+  go.run(r.instance);
+  fetchScores();
+}).catch(err => {
+  document.getElementById("loading").innerHTML = "❌ Failed to load game: " + err;
+});
+
+// ── Score fetch ──────────────────────────────────────────────────────────────
+function fetchScores() {
+  fetch("/api/scores?n=5")
+    .then(r => r.json())
+    .then(data => {
+      // Expose to WASM via global (engine reads it via JS interop)
+      window.purrcareScores = data;
+    })
+    .catch(() => {});
+}
+
+// ── Audio setup ───────────────────────────────────────────────────────────────
+const bgMenu   = new Audio("menu.mp3");
+const bgGame   = new Audio("music1.mp3");
+const sndMeow   = new Audio("meow.wav");
+const sndPurr   = new Audio("purr.flac");
+const sndLitter = new Audio("litter.wav");
+const sndScratch  = new Audio("cat-scratching-post.wav");
+const sndBrush    = new Audio("brushing.mp3");
+const sndEat      = new Audio("eating.ogg");
+const sndDrink    = new Audio("drinking.wav");
+
+bgMenu.loop  = true;
+bgGame.loop  = true;
+bgMenu.volume    = 0.38;
+bgGame.volume    = 0.15;
+sndMeow.volume   = 0.80;
+sndPurr.volume   = 0.55;
+sndLitter.volume  = 0.60;
+sndScratch.volume = 0.65;
+sndBrush.volume   = 0.70;
+sndEat.volume     = 0.65;
+sndDrink.volume   = 0.60;
+
+let muted = false;
+let currentBg = null;  // currently playing background track
+
+function applyMute() {
+  bgMenu.muted = muted;
+  bgGame.muted = muted;
+}
+
+document.getElementById("muteBtn").addEventListener("click", () => {
+  muted = !muted;
+  document.getElementById("muteBtn").textContent = muted ? "🔇" : "♫";
+  applyMute();
+});
+
+// Cross-fade between background music tracks.
+function switchBg(next) {
+  if (currentBg === next) return;
+  if (currentBg) {
+    currentBg.pause();
+    currentBg.currentTime = 0;
+  }
+  currentBg = next;
+  if (next && !muted) {
+    next.play().catch(() => {});
+  }
+}
+
+// Watch purrcareScene to swap background music.
+let lastScene = "";
+let pendingBg = null; // track we want to play but couldn't yet (autoplay policy)
+
+function sceneLoop() {
+  const scene = window.purrcareScene || "menu";
+  if (scene !== lastScene) {
+    lastScene = scene;
+    if (scene === "menu" || scene === "gameover" || scene === "victory") {
+      switchBg(bgMenu);
+    } else if (scene === "playing" || scene === "alert" || scene === "night") {
+      switchBg(bgGame);
+    } else {
+      switchBg(null);
+    }
+  }
+  requestAnimationFrame(sceneLoop);
+}
+requestAnimationFrame(sceneLoop);
+
+// Unlock audio on first user interaction (without swallowing the event).
+document.addEventListener("click",    resumeBg, { once: true, capture: false });
+document.addEventListener("keydown",  resumeBg, { once: true, capture: false });
+document.addEventListener("touchend", resumeBg, { once: true, capture: false });
+function resumeBg() {
+  if (currentBg && !muted) {
+    currentBg.currentTime = 0;
+    currentBg.play().catch(() => {});
+  }
+}
+
+// One-shot sound effects.
+let purrTimer = null;
+let scratchTimer = null;
+let brushTimer = null;
+
+function playSound(name) {
+  if (name === "meow") {
+    sndMeow.currentTime = 0;
+    sndMeow.play().catch(() => {});
+  } else if (name === "litter") {
+    sndLitter.currentTime = 0;
+    sndLitter.play().catch(() => {});
+  } else if (name === "purr") {
+    clearTimeout(purrTimer);
+    sndPurr.pause();
+    sndPurr.currentTime = 0;
+    sndPurr.play().catch(() => {});
+    purrTimer = setTimeout(() => {
+      sndPurr.pause();
+      sndPurr.currentTime = 0;
+    }, 3000);
+  } else if (name === "scratch") {
+    clearTimeout(scratchTimer);
+    sndScratch.pause();
+    sndScratch.currentTime = 0;
+    sndScratch.play().catch(() => {});
+    scratchTimer = setTimeout(() => {
+      sndScratch.pause();
+      sndScratch.currentTime = 0;
+    }, 3800);
+  } else if (name === "eat") {
+    sndEat.currentTime = 0;
+    sndEat.play().catch(() => {});
+  } else if (name === "drink") {
+    sndDrink.currentTime = 0;
+    sndDrink.play().catch(() => {});
+  } else if (name === "brush") {
+    clearTimeout(brushTimer);
+    sndBrush.pause();
+    sndBrush.currentTime = 0;
+    sndBrush.play().catch(() => {});
+    brushTimer = setTimeout(() => {
+      sndBrush.pause();
+      sndBrush.currentTime = 0;
+    }, 5000);
+  }
+}
+
+// ── Poll sound events from WASM (60 fps loop via rAF) ─────────────────────────
+function audioLoop() {
+  const ev = window.purrcareSound;
+  if (ev) {
+    window.purrcareSound = "";
+    playSound(ev);
+  }
+  requestAnimationFrame(audioLoop);
+}
+requestAnimationFrame(audioLoop);
+</script>
+</body>
+</html>

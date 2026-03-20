@@ -1,0 +1,90 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #1a0f05;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  color: #f5e6c8;
+}
+
+#gameCanvas {
+  display: block;
+  max-width: 100%;
+  max-height: 90vh;
+  border: 3px solid #6a4020;
+  border-radius: 8px;
+  box-shadow: 0 0 32px rgba(200, 120, 40, 0.3);
+  cursor: pointer;
+  image-rendering: crisp-edges;
+}
+
+#toolbar {
+  width: 800px;
+  max-width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  background: #2a1a08;
+  border-radius: 6px 6px 0 0;
+  border: 1px solid #6a4020;
+  border-bottom: none;
+}
+
+#toolbar .title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffd700;
+  letter-spacing: 1px;
+}
+
+#toolbar .controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+  color: #c0a870;
+}
+
+#muteBtn {
+  background: none;
+  border: 1px solid #6a4020;
+  border-radius: 4px;
+  color: #f5e6c8;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+#muteBtn:hover { background: #3a2010; }
+
+#loading {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #c0a870;
+  font-size: 16px;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #4a3018;
+  border-top-color: #ffd700;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#hint {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #7a6040;
+  text-align: center;
+}
