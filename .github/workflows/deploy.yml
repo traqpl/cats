@@ -33,6 +33,9 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
+      - name: Clean workspace caches with sudo
+        run: sudo rm -rf "$TMPDIR" "$GOCACHE" "$GOMODCACHE"
+
       - name: Prepare Go workspace directories
         run: mkdir -p "$TMPDIR" "$GOCACHE" "$GOMODCACHE"
 

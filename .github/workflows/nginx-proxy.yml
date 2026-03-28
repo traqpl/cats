@@ -18,6 +18,10 @@ concurrency:
 jobs:
   deploy:
     runs-on: [self-hosted, Linux, X64, games]
+    env:
+      TMPDIR: ${{ github.workspace }}/.tmp
+      GOCACHE: ${{ github.workspace }}/.cache/go-build
+      GOMODCACHE: ${{ github.workspace }}/.cache/go-mod
     if: >
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
@@ -29,6 +33,12 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 2
+
+      - name: Clean workspace caches with sudo
+        run: sudo rm -rf "$TMPDIR" "$GOCACHE" "$GOMODCACHE"
+
+      - name: Prepare Go workspace directories
+        run: mkdir -p "$TMPDIR" "$GOCACHE" "$GOMODCACHE"
 
       - name: Detect proxy-related changes
         id: changes

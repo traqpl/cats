@@ -21,6 +21,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      - name: Clean workspace caches with sudo
+        run: sudo rm -rf "$TMPDIR" "$GOCACHE" "$GOMODCACHE" .artifacts
+
       - name: Prepare Go workspace directories
         run: mkdir -p "$TMPDIR" "$GOCACHE" "$GOMODCACHE" .artifacts
 
