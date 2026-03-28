@@ -78,6 +78,7 @@ func main() {
 		}
 		srv.TLSConfig = &tls.Config{
 			Certificates: []tls.Certificate{tlsCert},
+			MinVersion:   tls.VersionTLS13,
 		}
 		ln, listenErr := tls.Listen("tcp", addr, srv.TLSConfig)
 		if listenErr != nil {

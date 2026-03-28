@@ -26,6 +26,7 @@ func fatalf(format string, args ...any) {
 }
 
 func readFile(path string) []byte {
+	// #nosec G304 -- path is constructed from fixed filenames in a local certs directory for build-time tooling.
 	data, err := os.ReadFile(path)
 	if err != nil {
 		fatalf("read %s: %v", path, err)
@@ -38,6 +39,7 @@ func encrypt(gcm cipher.AEAD, plaintext []byte) ([12]byte, []byte) {
 	if _, err := io.ReadFull(rand.Reader, nonce[:]); err != nil {
 		fatalf("rand: %v", err)
 	}
+	// #nosec G407 -- nonce is freshly generated from crypto/rand above; gosec false-positive on AEAD.Seal usage.
 	return nonce, gcm.Seal(nil, nonce[:], plaintext, nil)
 }
 
