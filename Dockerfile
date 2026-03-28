@@ -8,21 +8,19 @@ RUN go mod download
 COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -trimpath -ldflags="-s -w" -o /out/purr ./server/
+    go build -trimpath -ldflags="-s -w" -o /out/cats ./server/
 
 FROM scratch
 
 WORKDIR /app
 
-COPY --from=build /out/purr /app/purr
+COPY --from=build /out/cats /app/cats
 COPY --from=build /src/config.yaml /app/config.yaml
 
 ENV PORT=8071
-ENV DB_PATH=/data/purr_scores.db
+ENV DB_PATH=/data/cats_scores.db
 
 EXPOSE 8071
 VOLUME ["/data"]
 
-USER 65532:65532
-
-ENTRYPOINT ["/app/purr"]
+ENTRYPOINT ["/app/cats"]

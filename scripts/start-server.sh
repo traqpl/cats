@@ -2,7 +2,7 @@
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
-BIN="$DIR/purr"
+BIN="$DIR/cats"
 LOG="$DIR/server.log"
 CONFIG="${DIR}/config.yaml"
 
@@ -25,7 +25,7 @@ if [ -f "$CONFIG" ]; then
 fi
 
 PORT="${PORT:-8071}"
-DB_PATH="${DB_PATH:-$DIR/purr_scores.db}"
+DB_PATH="${DB_PATH:-$DIR/cats_scores.db}"
 
 nohup env PORT="$PORT" DB_PATH="$DB_PATH" "$BIN" >> "$LOG" 2>&1 &
 echo "deployed PID: $!"

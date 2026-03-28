@@ -2,7 +2,7 @@ package main
 
 import (
 	"database/sql"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -27,15 +27,16 @@ type ScoreStore struct {
 
 func NewScoreStore(dbPath string) *ScoreStore {
 	if dbPath == "" {
-		dbPath = "purr_scores.db"
+		dbPath = "cats_scores.db"
 	}
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0750); err != nil {
-		log.Fatalf("scores db dir: %v", err)
+	dbDir := filepath.Dir(dbPath)
+	if err := os.MkdirAll(dbDir, 0750); err != nil {
+		fatal("failed to create scores db dir", "dir", dbDir, "err", err)
 	}
 
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
-		log.Fatalf("open scores db %s: %v", dbPath, err)
+		fatal("failed to open scores db", "path", dbPath, "err", err)
 	}
 	db.SetMaxOpenConns(1)
 
@@ -47,10 +48,10 @@ func NewScoreStore(dbPath string) *ScoreStore {
 		timestamp TEXT    NOT NULL
 	)`)
 	if err != nil {
-		log.Fatalf("create scores table: %v", err)
+		fatal("failed to create scores table", "path", dbPath, "err", err)
 	}
 
-	log.Printf("scores db: %s", dbPath)
+	slog.Info("scores db ready", "path", dbPath)
 	return &ScoreStore{db: db, lastIP: make(map[string]time.Time)}
 }
 
@@ -62,12 +63,12 @@ func (s *ScoreStore) Top(n int) []ScoreEntry {
 		 LIMIT ?`, n,
 	)
 	if err != nil {
-		log.Printf("scores query: %v", err)
+		slog.Error("scores query failed", "err", err)
 		return nil
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
-			log.Printf("scores close rows: %v", err)
+			slog.Warn("scores close rows failed", "err", err)
 		}
 	}()
 
@@ -80,7 +81,7 @@ func (s *ScoreStore) Top(n int) []ScoreEntry {
 		entries = append(entries, e)
 	}
 	if err := rows.Err(); err != nil {
-		log.Printf("scores rows iteration: %v", err)
+		slog.Error("scores rows iteration failed", "err", err)
 		return nil
 	}
 	return entries
@@ -102,7 +103,7 @@ func (s *ScoreStore) Add(entry ScoreEntry, ip string) (string, int) {
 		entry.Nick, entry.Score, entry.Days, entry.Timestamp,
 	)
 	if err != nil {
-		log.Printf("scores insert: %v", err)
+		slog.Error("scores insert failed", "err", err, "nick", entry.Nick, "score", entry.Score, "days", entry.Days)
 		return "db error", http.StatusInternalServerError
 	}
 	return "", 0

@@ -1,12 +1,13 @@
-.PHONY: all wasm wasm-exec kill-port server dev build lint sec test ci docker-build deploy deploy-agent logs clean
+.PHONY: all wasm wasm-exec certs kill-port server dev build lint sec test ci docker-build deploy deploy-agent logs clean
 
 WASM_OUT = server/web/game.wasm
-BINARY   = purr
+BINARY   = cats
 URL      = http://localhost:8071
 PORT     ?= 8071
-DOCKER_IMAGE ?= purr:latest
+DOCKER_IMAGE ?= cats:latest
 GOLANGCI_LINT_VERSION ?= v2.8.0
 GOSEC_VERSION ?= v2.22.2
+CERTS_DIR ?= certs
 
 # ── deployment ────────────────────────────────────────────────────────────────
 REMOTE_HOST ?= daemon
@@ -29,6 +30,9 @@ wasm: lint sec
 
 wasm-exec:
 	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" server/web/wasm_exec.js
+
+certs:
+	go run ./cmd/certgen $(CERTS_DIR)
 
 kill-port:
 	@lsof -ti :8071 | xargs kill -9 2>/dev/null || true
@@ -68,14 +72,14 @@ deploy: lint sec wasm
 
 deploy-agent: lint sec wasm
 	DEPLOY_DIR="$${DEPLOY_DIR:-$$HOME/cats}"; \
-	mkdir -p "$$DEPLOY_DIR/data" && \
+	mkdir -p "$$DEPLOY_DIR" && \
 	docker build -t $(DOCKER_IMAGE) . && \
 	cp compose.yaml "$$DEPLOY_DIR/compose.yaml" && \
 	cp config.yaml "$$DEPLOY_DIR/config.yaml" && \
-	IMAGE_NAME=$(DOCKER_IMAGE) PORT=$(PORT) docker compose -f "$$DEPLOY_DIR/compose.yaml" up -d --force-recreate
+	IMAGE_NAME=$(DOCKER_IMAGE) PORT=$(PORT) docker compose -f "$$DEPLOY_DIR/compose.yaml" up -d --force-recreate --remove-orphans
 
 logs:
 	ssh $(REMOTE_HOST) "tail -f $(REMOTE_LOG)"
 
 clean:
-	rm -f $(WASM_OUT) $(BINARY) server/web/wasm_exec.js
+	rm -f $(WASM_OUT) $(BINARY) server/web/wasm_exec.js internal/certdata/encrypted.go

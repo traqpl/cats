@@ -33,10 +33,10 @@ jobs:
         run: go test ./...
 
       - name: Build server
-        run: go build -ldflags="-s -w" -o /tmp/purr ./server/
+        run: go build -ldflags="-s -w" -o /tmp/cats ./server/
 
       - name: Build WASM game
         run: GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o /tmp/game.wasm ./game/
 
       - name: Build Docker image
-        run: docker build -t purr:ci .
+        run: docker build -t cats:ci .

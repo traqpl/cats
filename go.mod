@@ -1,4 +1,4 @@
-module purr
+module cats
 
 go 1.26.0
 

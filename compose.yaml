@@ -1,12 +1,15 @@
 services:
-  purr:
-    image: ${IMAGE_NAME:-purr:latest}
-    container_name: purr
+  cats:
+    image: ${IMAGE_NAME:-cats:latest}
+    container_name: cats
     restart: unless-stopped
     ports:
       - "${PORT:-8071}:8071"
     environment:
       PORT: "8071"
-      DB_PATH: /data/purr_scores.db
+      DB_PATH: /data/cats_scores.db
     volumes:
-      - ./data:/data
+      - cats-data:/data
+
+volumes:
+  cats-data:

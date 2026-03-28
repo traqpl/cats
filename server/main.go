@@ -1,10 +1,13 @@
 package main
 
 import (
+	"cats/internal/certdata"
+	"crypto/tls"
 	"embed"
 	"encoding/json"
+	"errors"
 	"io/fs"
-	"log"
+	"log/slog"
 	"mime"
 	"net"
 	"net/http"
@@ -22,6 +25,8 @@ var store *ScoreStore
 var nickRe = regexp.MustCompile(`^[A-Za-z0-9]{3}$`)
 
 func main() {
+	initLogger()
+
 	store = NewScoreStore(os.Getenv("DB_PATH"))
 
 	_ = mime.AddExtensionType(".wasm", "application/wasm")
@@ -37,7 +42,7 @@ func main() {
 
 	sub, err := fs.Sub(webFS, "web")
 	if err != nil {
-		log.Fatal(err)
+		fatal("failed to open embedded web filesystem", "err", err)
 	}
 
 	mux := http.NewServeMux()
@@ -63,9 +68,32 @@ func main() {
 		WriteTimeout:      15 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
-	log.Printf("PURR & CARE → http://localhost%s", addr)
-	if err := srv.ListenAndServe(); err != nil {
-		log.Fatal(err)
+
+	certChainPEM, keyPEM, err := certdata.Load()
+	switch {
+	case err == nil:
+		tlsCert, certErr := tls.X509KeyPair(certChainPEM, keyPEM)
+		if certErr != nil {
+			fatal("invalid embedded tls keypair", "err", certErr)
+		}
+		srv.TLSConfig = &tls.Config{
+			Certificates: []tls.Certificate{tlsCert},
+		}
+		ln, listenErr := tls.Listen("tcp", addr, srv.TLSConfig)
+		if listenErr != nil {
+			fatal("failed to listen with tls", "addr", addr, "err", listenErr)
+		}
+		slog.Info("server starting with embedded tls", "name", "cats", "addr", addr)
+		if serveErr := srv.Serve(ln); serveErr != nil {
+			fatal("tls server stopped", "err", serveErr)
+		}
+	case errors.Is(err, certdata.ErrNoCertData):
+		slog.Warn("embedded tls certs not found, starting http only", "addr", addr)
+		if serveErr := srv.ListenAndServe(); serveErr != nil {
+			fatal("server stopped", "err", serveErr)
+		}
+	default:
+		fatal("failed to load embedded tls certs", "err", err)
 	}
 }
 
