@@ -50,7 +50,11 @@ build: lint sec wasm
 	go build -ldflags="-s -w" -o $(BINARY) ./server/
 
 lint:
+ifeq ($(SKIP_LINT),1)
+	@echo "Skipping golangci-lint (SKIP_LINT=1)"
+else
 	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run ./...
+endif
 
 sec:
 ifeq ($(SKIP_SEC),1)
