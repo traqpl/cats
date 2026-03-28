@@ -53,7 +53,11 @@ lint:
 	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run ./...
 
 sec:
+ifeq ($(SKIP_SEC),1)
+	@echo "Skipping gosec (SKIP_SEC=1)"
+else
 	go run github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION) ./...
+endif
 
 test:
 	go test ./...
