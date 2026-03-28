@@ -1,0 +1,12 @@
+services:
+  cats-nginx:
+    image: cats-nginx:latest
+    container_name: cats-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./certs:/etc/nginx/certs:ro

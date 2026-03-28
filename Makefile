@@ -1,10 +1,11 @@
-.PHONY: all wasm wasm-exec certs kill-port server dev build lint sec test ci docker-build deploy deploy-agent logs clean
+.PHONY: all wasm wasm-exec certs kill-port server dev build lint sec test ci docker-build docker-build-nginx deploy deploy-agent deploy-nginx logs clean
 
 WASM_OUT = server/web/game.wasm
 BINARY   = cats
 URL      = http://localhost:8071
 PORT     ?= 8071
 DOCKER_IMAGE ?= cats:latest
+NGINX_IMAGE ?= cats-nginx:latest
 GOLANGCI_LINT_VERSION ?= v2.8.0
 GOSEC_VERSION ?= v2.22.2
 CERTS_DIR ?= certs
@@ -62,6 +63,9 @@ ci: lint sec test wasm build
 docker-build: lint sec
 	docker build -t $(DOCKER_IMAGE) .
 
+docker-build-nginx: lint sec
+	docker build -t $(NGINX_IMAGE) ./nginx
+
 deploy: lint sec wasm
 	GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o $(BINARY) ./server/
 	ssh $(REMOTE_HOST) "mkdir -p $(REMOTE_DIR) && pkill -x $(BINARY) || true; sleep 1; rm -f $(REMOTE_BIN)"
@@ -77,6 +81,15 @@ deploy-agent: lint sec wasm
 	cp compose.yaml "$$DEPLOY_DIR/compose.yaml" && \
 	cp config.yaml "$$DEPLOY_DIR/config.yaml" && \
 	IMAGE_NAME=$(DOCKER_IMAGE) PORT=$(PORT) docker compose -f "$$DEPLOY_DIR/compose.yaml" up -d --force-recreate --remove-orphans
+
+deploy-nginx: lint sec
+	DEPLOY_DIR="$${DEPLOY_DIR:-$$HOME/cats-nginx}"; \
+	mkdir -p "$$DEPLOY_DIR/certs" && \
+	docker build -t $(NGINX_IMAGE) ./nginx && \
+	cp nginx/compose.yaml "$$DEPLOY_DIR/compose.yaml" && \
+	cp nginx/certs/fullchain.pem "$$DEPLOY_DIR/certs/fullchain.pem" && \
+	cp nginx/certs/privkey.pem "$$DEPLOY_DIR/certs/privkey.pem" && \
+	docker compose -f "$$DEPLOY_DIR/compose.yaml" up -d --force-recreate --remove-orphans
 
 logs:
 	ssh $(REMOTE_HOST) "tail -f $(REMOTE_LOG)"

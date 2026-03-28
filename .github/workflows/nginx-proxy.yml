@@ -1,0 +1,49 @@
+name: Nginx Proxy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "nginx/**"
+      - ".github/workflows/nginx-proxy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nginx-proxy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Materialize proxy TLS cert secrets
+        env:
+          TLS_CERT_PEM: ${{ secrets.CATS_TLS_CERT_PEM }}
+          TLS_INTERMEDIATE_PEM: ${{ secrets.CATS_TLS_INTERMEDIATE_PEM }}
+          TLS_PRIVATE_KEY_PEM: ${{ secrets.CATS_TLS_PRIVATE_KEY_PEM }}
+        run: |
+          mkdir -p nginx/certs
+          printf '%s\n' "$TLS_CERT_PEM" > "nginx/certs/cert.pem"
+          printf '%s\n' "$TLS_INTERMEDIATE_PEM" > "nginx/certs/intermediate.pem"
+          printf '%s\n' "$TLS_PRIVATE_KEY_PEM" > "nginx/certs/privkey.pem"
+          cat "nginx/certs/cert.pem" "nginx/certs/intermediate.pem" > "nginx/certs/fullchain.pem"
+
+      - name: Build proxy image
+        run: docker build -t cats-nginx:latest ./nginx
+
+      - name: Deploy proxy on agent host
+        run: |
+          DEPLOY_DIR="$HOME/cats-nginx"
+          mkdir -p "$DEPLOY_DIR/certs"
+          cp nginx/compose.yaml "$DEPLOY_DIR/compose.yaml"
+          cp nginx/certs/fullchain.pem "$DEPLOY_DIR/certs/fullchain.pem"
+          cp nginx/certs/privkey.pem "$DEPLOY_DIR/certs/privkey.pem"
+          docker compose -f "$DEPLOY_DIR/compose.yaml" up -d --force-recreate --remove-orphans
