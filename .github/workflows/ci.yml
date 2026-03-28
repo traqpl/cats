@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, games]
     env:
       TMPDIR: ${{ github.workspace }}/.tmp
       GOCACHE: ${{ github.workspace }}/.cache/go-build
