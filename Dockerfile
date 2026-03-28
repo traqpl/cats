@@ -1,13 +1,26 @@
-FROM golang:1.26@sha256:f200f27a113fd26789f07ff95ec1f7e337e295ddb711c693cf5b18a6dc7e88f5 AS build
+# syntax=docker/dockerfile:1.7
+
+FROM --platform=linux/amd64 golang:1.26 AS build
 
 WORKDIR /src
 
+ENV GOCACHE=/root/.cache/go-build
+ENV GOMODCACHE=/go/pkg/mod
+ENV GOTMPDIR=/root/.cache/go-tmp
+
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/root/.cache/go-tmp \
+    mkdir -p "$GOCACHE" "$GOTMPDIR" && go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/root/.cache/go-tmp \
+    mkdir -p "$GOCACHE" "$GOTMPDIR" && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -trimpath -ldflags="-s -w" -o /out/cats ./server/
 
 FROM scratch
