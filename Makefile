@@ -26,7 +26,7 @@ all: lint sec wasm kill-port
 	@sleep 3 && $(BROWSER_OPEN) $(URL) >/dev/null 2>&1 &
 	go run ./server/
 
-wasm: lint sec
+wasm: lint sec wasm-exec
 	GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o $(WASM_OUT) ./game/
 
 wasm-exec:
