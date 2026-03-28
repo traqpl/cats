@@ -34,6 +34,16 @@ func readFile(path string) []byte {
 	return data
 }
 
+func readFirstExisting(paths ...string) []byte {
+	for _, path := range paths {
+		if _, err := os.Stat(path); err == nil {
+			return readFile(path)
+		}
+	}
+	fatalf("missing required certificate file, tried: %s", strings.Join(paths, ", "))
+	return nil
+}
+
 func encrypt(gcm cipher.AEAD, plaintext []byte) ([12]byte, []byte) {
 	var nonce [12]byte
 	if _, err := io.ReadFull(rand.Reader, nonce[:]); err != nil {
@@ -65,9 +75,18 @@ func main() {
 		certsDir = os.Args[1]
 	}
 
-	certPEM := readFile(filepath.Join(certsDir, "Certyfikat.txt"))
-	interPEM := readFile(filepath.Join(certsDir, "Certyfikat posredni.txt"))
-	keyPEM := readFile(filepath.Join(certsDir, "Klucz prywatny.txt"))
+	certPEM := readFirstExisting(
+		filepath.Join(certsDir, "Certyfikat.txt"),
+		filepath.Join(certsDir, "cert.pem"),
+	)
+	interPEM := readFirstExisting(
+		filepath.Join(certsDir, "Certyfikat posredni.txt"),
+		filepath.Join(certsDir, "intermediate.pem"),
+	)
+	keyPEM := readFirstExisting(
+		filepath.Join(certsDir, "Klucz prywatny.txt"),
+		filepath.Join(certsDir, "key.pem"),
+	)
 
 	chainPEM := append(certPEM, interPEM...)
 

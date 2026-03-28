@@ -1228,24 +1228,24 @@ func (e *Engine) drawCatCrouching(cx, cy float64) {
 // side is -1 (left) or +1 (right). If tuft is true, small inner fur lines are drawn.
 func (e *Engine) drawEar(baseX, baseY float64, side float64, tuft bool) {
 	ctx := e.ctx
-	// Outer ear — smaller, with the whole base anchored into the head.
-	tipX := baseX + side*3
-	tipY := baseY - 20
+	// Outer ear — compact and seated lower so the base stays fully merged into the skull.
+	tipX := baseX + side*2.6
+	tipY := baseY - 17
 	ctx.Set("fillStyle", colCatPoint)
 	ctx.Call("beginPath")
-	ctx.Call("moveTo", baseX-side*6, baseY+1)
-	ctx.Call("quadraticCurveTo", baseX, baseY-4, baseX+side*6, baseY+1)
+	ctx.Call("moveTo", baseX-side*5.2, baseY+1.4)
+	ctx.Call("quadraticCurveTo", baseX, baseY-2.5, baseX+side*5.2, baseY+1.4)
 	ctx.Call("lineTo", tipX, tipY)
 	ctx.Call("closePath")
 	ctx.Call("fill")
 
 	// Inner ear — inset and shorter so it stays fully inside the outer ear.
-	iBaseX := baseX - side*1.5
+	iBaseX := baseX - side*1.1
 	ctx.Set("fillStyle", colCatInner)
 	ctx.Call("beginPath")
-	ctx.Call("moveTo", iBaseX-side*3.2, baseY)
-	ctx.Call("quadraticCurveTo", iBaseX, baseY-2.5, iBaseX+side*3.2, baseY)
-	ctx.Call("lineTo", tipX+side*0.5, tipY+7)
+	ctx.Call("moveTo", iBaseX-side*2.8, baseY+0.4)
+	ctx.Call("quadraticCurveTo", iBaseX, baseY-1.5, iBaseX+side*2.8, baseY+0.4)
+	ctx.Call("lineTo", tipX+side*0.4, tipY+6.4)
 	ctx.Call("closePath")
 	ctx.Call("fill")
 

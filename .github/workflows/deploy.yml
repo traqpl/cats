@@ -43,11 +43,11 @@ jobs:
           TLS_CSR_PEM: ${{ secrets.CATS_TLS_CSR_PEM }}
         run: |
           mkdir -p certs
-          printf '%s\n' "$TLS_CERT_PEM" > certs/Certyfikat.txt
-          printf '%s\n' "$TLS_INTERMEDIATE_PEM" > certs/Certyfikat posredni.txt
-          printf '%s\n' "$TLS_PRIVATE_KEY_PEM" > certs/Klucz prywatny.txt
+          printf '%s\n' "$TLS_CERT_PEM" > "certs/Certyfikat.txt"
+          printf '%s\n' "$TLS_INTERMEDIATE_PEM" > "certs/Certyfikat posredni.txt"
+          printf '%s\n' "$TLS_PRIVATE_KEY_PEM" > "certs/Klucz prywatny.txt"
           if [ -n "${TLS_CSR_PEM:-}" ]; then
-            printf '%s\n' "$TLS_CSR_PEM" > certs/CSR.txt
+            printf '%s\n' "$TLS_CSR_PEM" > "certs/CSR.txt"
           fi
 
       - name: Generate embedded TLS bundle

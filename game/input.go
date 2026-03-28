@@ -21,7 +21,7 @@ func (e *Engine) registerInput() {
 				}
 			case "KeyQ":
 				if e.state == StatePaused {
-					e.enterMainMenu()
+					e.finishRunToMenu()
 				}
 			case "Space", "Enter":
 				switch e.state {
@@ -34,7 +34,7 @@ func (e *Engine) registerInput() {
 				case StateAlert:
 					e.dismissAlert()
 				case StateGameOver, StateVictory:
-					e.enterMainMenu()
+					e.finishRunToMenu()
 				}
 			case "KeyS":
 				if e.state == StateMainMenu {
@@ -105,7 +105,7 @@ func (e *Engine) handleClick(mx, my float64) {
 			e.nextDay()
 		}
 	case StateGameOver, StateVictory:
-		e.enterMainMenu()
+		e.finishRunToMenu()
 	case StatePlaying:
 		e.handlePlayClick(mx, my)
 	}

@@ -165,16 +165,16 @@ type Engine struct {
 	speed    float64 // time multiplier
 
 	// Scoring
-	score      int
-	dayScore   int
-	scoreTick  float64 // accumulator for per-second scoring
+	score       int
+	dayScore    int
+	scoreTick   float64 // accumulator for per-second scoring
 	dayHadAlert bool
 
 	// Alert tracking
-	alertTimers  [8]float64 // real seconds each need has been below AlertThreshold
-	zeroTimers   [8]float64 // real seconds each need has been at 0
+	alertTimers   [8]float64 // real seconds each need has been below AlertThreshold
+	zeroTimers    [8]float64 // real seconds each need has been at 0
 	pendingAlerts []Alert
-	activeAlert  *Alert
+	activeAlert   *Alert
 
 	// Night transition
 	nightAlpha float64 // 0→0.75 fade
@@ -186,7 +186,7 @@ type Engine struct {
 	time   float64 // total elapsed real seconds (for animations)
 
 	// Sound event — JS polls and clears this each frame
-	soundEvent  string  // "meow" | "purr" | ""
+	soundEvent   string  // "meow" | "purr" | ""
 	meowCooldown float64 // seconds until next meow is allowed
 
 	// Leaderboard (fetched from server)
@@ -195,6 +195,11 @@ type Engine struct {
 	// Last result (for menu display)
 	lastScore int
 	lastDays  int
+
+	// Hall of fame submission state
+	runSerial          int
+	submittedRunSerial int
+	submittingScore    bool
 }
 
 // ── constructor ───────────────────────────────────────────────────────────────
@@ -208,7 +213,7 @@ func NewEngine(canvas js.Value) *Engine {
 	}
 	e.initObjects()
 	e.enterMainMenu()
-	go e.fetchScores()
+	e.fetchScores()
 	return e
 }
 
@@ -283,8 +288,15 @@ func (e *Engine) enterMainMenu() {
 	e.hearts = nil
 }
 
+func (e *Engine) finishRunToMenu() {
+	e.captureLastResult()
+	e.maybeSubmitScore()
+	e.enterMainMenu()
+}
+
 func (e *Engine) newGame() {
 	e.needs = Needs{1, 1, 1, 1, 1, 1, 1, 1}
+	e.runSerial++
 	e.day = 1
 	e.gameTime = 0
 	e.score = 0
@@ -300,6 +312,7 @@ func (e *Engine) newGame() {
 	e.flash = nil
 	e.hearts = nil
 	e.time = 0
+	e.submittingScore = false
 
 	e.resetObjectCaps()
 
@@ -312,6 +325,22 @@ func (e *Engine) newGame() {
 	}
 
 	e.state = StatePlaying
+}
+
+func (e *Engine) captureLastResult() {
+	if e.score <= 0 {
+		return
+	}
+	e.lastScore = e.score
+	if e.day < 1 {
+		e.lastDays = 1
+		return
+	}
+	if e.day > MaxDays {
+		e.lastDays = MaxDays
+		return
+	}
+	e.lastDays = e.day
 }
 
 func (e *Engine) enterNight() {
@@ -550,11 +579,181 @@ func catStateForObj(i int) (CatState, float64) {
 }
 
 func (e *Engine) fetchScores() {
-	// Fetch top scores via JS fetch
 	promise := js.Global().Call("fetch", "/api/scores?n=5")
-	// We use a simplified approach: set a global that JS can check
-	// For now scores are loaded on game start via JS
-	_ = promise
+	var onResp js.Func
+	var onJSON js.Func
+	var onErr js.Func
+
+	released := false
+	release := func() {
+		if released {
+			return
+		}
+		released = true
+		onResp.Release()
+		onJSON.Release()
+		onErr.Release()
+	}
+
+	onResp = js.FuncOf(func(_ js.Value, args []js.Value) any {
+		if len(args) == 0 {
+			release()
+			return nil
+		}
+		return args[0].Call("json")
+	})
+
+	onJSON = js.FuncOf(func(_ js.Value, args []js.Value) any {
+		if len(args) == 0 {
+			e.topScores = nil
+			release()
+			return nil
+		}
+		data := args[0]
+		scores := make([]ScoreEntry, 0, data.Length())
+		for i := 0; i < data.Length(); i++ {
+			item := data.Index(i)
+			scores = append(scores, ScoreEntry{
+				Nick:      item.Get("nick").String(),
+				Score:     item.Get("score").Int(),
+				Days:      item.Get("days").Int(),
+				Timestamp: item.Get("timestamp").String(),
+			})
+		}
+		e.topScores = scores
+		release()
+		return nil
+	})
+
+	onErr = js.FuncOf(func(_ js.Value, args []js.Value) any {
+		js.Global().Get("console").Call("warn", "failed to fetch scores", args[0])
+		release()
+		return nil
+	})
+
+	promise.Call("then", onResp).Call("then", onJSON).Call("catch", onErr)
+}
+
+func (e *Engine) maybeSubmitScore() {
+	if e.score <= 0 || e.submittingScore || e.submittedRunSerial == e.runSerial {
+		return
+	}
+	nick := promptNick()
+	if nick == "" {
+		return
+	}
+	e.submittingScore = true
+	e.submitScore(nick, e.score, e.lastDays, e.runSerial)
+}
+
+func promptNick() string {
+	defaultNick := "CAT"
+	localStorage := js.Global().Get("localStorage")
+	if !localStorage.IsUndefined() && !localStorage.IsNull() {
+		if saved := localStorage.Call("getItem", "catsNick"); !saved.IsNull() && !saved.IsUndefined() {
+			if nick := normalizeNick(saved.String()); nick != "" {
+				defaultNick = nick
+			}
+		}
+	}
+
+	for {
+		input := js.Global().Call("prompt", "Hall of Fame: enter 3 letters or digits", defaultNick)
+		if input.IsNull() || input.IsUndefined() {
+			return ""
+		}
+		nick := normalizeNick(input.String())
+		if nick == "" {
+			js.Global().Call("alert", "Nick must have exactly 3 letters or digits.")
+			continue
+		}
+		if !localStorage.IsUndefined() && !localStorage.IsNull() {
+			localStorage.Call("setItem", "catsNick", nick)
+		}
+		return nick
+	}
+}
+
+func normalizeNick(raw string) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	buf := make([]byte, 0, 3)
+	for i := 0; i < len(raw); i++ {
+		c := raw[i]
+		switch {
+		case c >= 'a' && c <= 'z':
+			buf = append(buf, c-'a'+'A')
+		case c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+			buf = append(buf, c)
+		}
+		if len(buf) > 3 {
+			return ""
+		}
+	}
+	if len(buf) != 3 {
+		return ""
+	}
+	return string(buf)
+}
+
+func (e *Engine) submitScore(nick string, score, days, runSerial int) {
+	payload := js.Global().Get("Object").New()
+	payload.Set("nick", nick)
+	payload.Set("score", score)
+	payload.Set("days", days)
+
+	headers := js.Global().Get("Object").New()
+	headers.Set("Content-Type", "application/json")
+
+	init := js.Global().Get("Object").New()
+	init.Set("method", "POST")
+	init.Set("headers", headers)
+	init.Set("body", js.Global().Get("JSON").Call("stringify", payload))
+
+	promise := js.Global().Call("fetch", "/api/scores", init)
+
+	var onResp js.Func
+	var onErr js.Func
+
+	released := false
+	release := func() {
+		if released {
+			return
+		}
+		released = true
+		onResp.Release()
+		onErr.Release()
+	}
+
+	onResp = js.FuncOf(func(_ js.Value, args []js.Value) any {
+		e.submittingScore = false
+		if len(args) == 0 {
+			release()
+			return nil
+		}
+		resp := args[0]
+		if !resp.Get("ok").Bool() {
+			js.Global().Get("console").Call("warn", "score submission failed", resp.Get("status"))
+			release()
+			return nil
+		}
+		if runSerial == e.runSerial {
+			e.submittedRunSerial = runSerial
+		}
+		e.fetchScores()
+		release()
+		return nil
+	})
+
+	onErr = js.FuncOf(func(_ js.Value, args []js.Value) any {
+		e.submittingScore = false
+		js.Global().Get("console").Call("warn", "score submission failed", args[0])
+		release()
+		return nil
+	})
+
+	promise.Call("then", onResp).Call("catch", onErr)
 }
 
 // ── misc helpers ──────────────────────────────────────────────────────────────
