@@ -35,4 +35,7 @@ go.work.sum
 /.claude/
 /certs/
 /nginx/certs/
+/.cache/
+/.tmp/
+/.artifacts/
 /internal/certdata/encrypted.go
