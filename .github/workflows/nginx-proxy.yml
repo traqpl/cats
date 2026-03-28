@@ -42,11 +42,11 @@ jobs:
           cat "nginx/certs/cert.pem" "nginx/certs/intermediate.pem" > "nginx/certs/fullchain.pem"
 
       - name: Build proxy image
-        run: docker build -t cats-nginx:latest ./nginx
+        run: docker build -t game-proxy:latest ./nginx
 
       - name: Deploy proxy on agent host
         run: |
-          DEPLOY_DIR="$HOME/cats-nginx"
+          DEPLOY_DIR="$HOME/game-proxy"
           mkdir -p "$DEPLOY_DIR/certs"
           cp nginx/compose.yaml "$DEPLOY_DIR/compose.yaml"
           cp nginx/certs/fullchain.pem "$DEPLOY_DIR/certs/fullchain.pem"

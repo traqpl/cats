@@ -1,7 +1,7 @@
 services:
-  cats-nginx:
-    image: cats-nginx:latest
-    container_name: cats-nginx
+  game-proxy:
+    image: game-proxy:latest
+    container_name: game-proxy
     restart: unless-stopped
     ports:
       - "80:80"

@@ -5,7 +5,7 @@ BINARY   = cats
 URL      = http://localhost:8071
 PORT     ?= 8071
 DOCKER_IMAGE ?= cats:latest
-NGINX_IMAGE ?= cats-nginx:latest
+NGINX_IMAGE ?= game-proxy:latest
 GOLANGCI_LINT_VERSION ?= v2.8.0
 GOSEC_VERSION ?= v2.22.2
 CERTS_DIR ?= certs
@@ -83,7 +83,7 @@ deploy-agent: lint sec wasm
 	IMAGE_NAME=$(DOCKER_IMAGE) PORT=$(PORT) docker compose -f "$$DEPLOY_DIR/compose.yaml" up -d --force-recreate --remove-orphans
 
 deploy-nginx: lint sec
-	DEPLOY_DIR="$${DEPLOY_DIR:-$$HOME/cats-nginx}"; \
+	DEPLOY_DIR="$${DEPLOY_DIR:-$$HOME/game-proxy}"; \
 	mkdir -p "$$DEPLOY_DIR/certs" && \
 	docker build -t $(NGINX_IMAGE) ./nginx && \
 	cp nginx/compose.yaml "$$DEPLOY_DIR/compose.yaml" && \
