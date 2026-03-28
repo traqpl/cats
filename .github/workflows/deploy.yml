@@ -35,23 +35,8 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Materialize TLS cert secrets
-        env:
-          TLS_CERT_PEM: ${{ secrets.CATS_TLS_CERT_PEM }}
-          TLS_INTERMEDIATE_PEM: ${{ secrets.CATS_TLS_INTERMEDIATE_PEM }}
-          TLS_PRIVATE_KEY_PEM: ${{ secrets.CATS_TLS_PRIVATE_KEY_PEM }}
-          TLS_CSR_PEM: ${{ secrets.CATS_TLS_CSR_PEM }}
-        run: |
-          mkdir -p certs
-          printf '%s\n' "$TLS_CERT_PEM" > "certs/Certyfikat.txt"
-          printf '%s\n' "$TLS_INTERMEDIATE_PEM" > "certs/Certyfikat posredni.txt"
-          printf '%s\n' "$TLS_PRIVATE_KEY_PEM" > "certs/Klucz prywatny.txt"
-          if [ -n "${TLS_CSR_PEM:-}" ]; then
-            printf '%s\n' "$TLS_CSR_PEM" > "certs/CSR.txt"
-          fi
-
-      - name: Generate embedded TLS bundle
-        run: make certs
+      - name: Remove stale embedded TLS bundle
+        run: rm -f internal/certdata/encrypted.go
 
       - name: Deploy on agent host
         env:
