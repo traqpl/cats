@@ -5,7 +5,7 @@ BINARY   = purr
 URL      = http://localhost:8071
 PORT     ?= 8071
 DOCKER_IMAGE ?= purr:latest
-GOLANGCI_LINT_VERSION ?= v1.64.8
+GOLANGCI_LINT_VERSION ?= v2.8.0
 GOSEC_VERSION ?= v2.22.2
 
 # ── deployment ────────────────────────────────────────────────────────────────
