@@ -1,0 +1,40 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Deploy on agent host
+        env:
+          DEPLOY_DIR: ${{ vars.DEPLOY_DIR }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT }}
+        run: |
+          make deploy-agent \
+            DEPLOY_DIR="${DEPLOY_DIR:-$HOME/cats}" \
+            PORT="${DEPLOY_PORT:-8071}"

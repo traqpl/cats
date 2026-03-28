@@ -1,0 +1,2 @@
+port: 8071
+db_path: ./purr_scores.db

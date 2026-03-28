@@ -291,6 +291,15 @@ func (e *Engine) drawToy(cx, fy float64) {
 	}
 }
 
+func (e *Engine) toyFeatherPose(cx float64) (anchorX, anchorY, featherX, featherY float64) {
+	swing := math.Sin(e.time*3) * 12
+	anchorX = cx
+	anchorY = objFootY
+	featherX = cx + swing
+	featherY = objFootY - 55
+	return
+}
+
 func (e *Engine) drawBed(cx, fy float64) {
 	ctx := e.ctx
 	bw := 100.0
@@ -389,7 +398,7 @@ func (e *Engine) drawCatGrooming(cx, cy float64) {
 	// Side-profile cat standing on 4 paws, being brushed.
 	// Body sways gently as brush strokes along the spine.
 	stroke := math.Sin(e.time * 2.8) // -1..1
-	bx := cx - 2 + stroke*10        // brush moves back and forth along spine
+	bx := cx - 2 + stroke*10         // brush moves back and forth along spine
 
 	// Tail — raised and curved behind the cat (away from viewer)
 	tipSway := stroke * 5
@@ -618,6 +627,8 @@ func (e *Engine) renderCat() {
 	cy := cat.Y
 
 	switch cat.State {
+	case CatWalking:
+		e.drawCatWalking(cx, cy)
 	case CatSleeping:
 		e.drawCatSleeping(cx, cy)
 	case CatEating:
@@ -713,12 +724,163 @@ func (e *Engine) drawCatSitting(cx, cy float64) {
 	ctx.Call("fill")
 }
 
+func (e *Engine) drawCatWalking(cx, cy float64) {
+	ctx := e.ctx
+	ctx.Call("save")
+	ctx.Call("translate", cx, cy)
+	ctx.Call("scale", 1.14, 1.14)
+	ctx.Call("translate", -cx, -cy)
+	defer ctx.Call("restore")
+
+	cat := &e.cat
+	phase := (float64(cat.AnimFrame) + cat.AnimTime/0.25) * (math.Pi / 2)
+	backLead := math.Sin(phase)
+	frontLead := math.Sin(phase + math.Pi*0.52)
+	spineWave := math.Sin(phase*2 + 0.35)
+	bodyDip := 1.2 + 0.8*math.Cos(phase*2)
+	headGlide := math.Sin(phase+0.25) * 0.9
+	shoulderRoll := math.Sin(phase+math.Pi*0.52) * 1.4
+	hipRoll := math.Sin(phase) * 1.1
+	tailSway := math.Sin(phase*0.55-0.3) * 4.5
+
+	// Tail stays fairly level and follows the spine with a delayed sway.
+	ctx.Set("strokeStyle", colCatPointL)
+	ctx.Set("lineWidth", 7)
+	ctx.Set("lineCap", "round")
+	ctx.Call("beginPath")
+	ctx.Call("moveTo", cx-24, cy-30-bodyDip*0.2)
+	ctx.Call("bezierCurveTo", cx-42, cy-34+tailSway*0.4, cx-50, cy-44+tailSway, cx-34, cy-51+tailSway*0.3)
+	ctx.Call("stroke")
+	ctx.Set("strokeStyle", colCatPoint)
+	ctx.Set("lineWidth", 5)
+	ctx.Call("beginPath")
+	ctx.Call("moveTo", cx-42, cy-44+tailSway*0.2)
+	ctx.Call("bezierCurveTo", cx-48, cy-50+tailSway*0.5, cx-38, cy-55, cx-34, cy-51+tailSway*0.3)
+	ctx.Call("stroke")
+
+	// Rear legs: compact, stepping under the pelvis.
+	e.drawWalkingLeg(cx-14, cy-24+hipRoll, cy-3, backLead, false, true)
+	e.drawWalkingLeg(cx-4, cy-23-hipRoll*0.5, cy-3.5, -backLead, false, false)
+
+	// Long flexible torso with a subtle feline spine wave.
+	ctx.Set("fillStyle", colCatBody)
+	ctx.Call("beginPath")
+	ctx.Call("ellipse", cx+4, cy-29-bodyDip, 29, 14.5, -0.05+spineWave*0.02, 0, math.Pi*2)
+	ctx.Call("fill")
+	ctx.Set("fillStyle", colCatChest)
+	ctx.Call("beginPath")
+	ctx.Call("ellipse", cx+14, cy-27-bodyDip*0.85, 16, 8.8, -0.12, 0, math.Pi*2)
+	ctx.Call("fill")
+
+	// Front legs glide rather than stomp; one reaches while the other bears weight.
+	e.drawWalkingLeg(cx+13, cy-22+shoulderRoll, cy-2.8, frontLead, true, true)
+	e.drawWalkingLeg(cx+24, cy-21-shoulderRoll*0.45, cy-2.2, -frontLead, true, false)
+
+	// Neck and head float forward with minimal bob, typical of a cat walk.
+	ctx.Set("fillStyle", colCatBody)
+	ctx.Call("beginPath")
+	ctx.Call("ellipse", cx+25, cy-38-bodyDip*0.7+headGlide*0.3, 9, 12, -0.22, 0, math.Pi*2)
+	ctx.Call("fill")
+
+	hx := cx + 37.0
+	hy := cy - 47.0 - bodyDip*0.55 + headGlide
+	ctx.Set("fillStyle", colCatBody)
+	ctx.Call("beginPath")
+	ctx.Call("arc", hx, hy, 15.5, 0, math.Pi*2)
+	ctx.Call("fill")
+	ctx.Set("fillStyle", colCatPoint)
+	ctx.Call("beginPath")
+	ctx.Call("arc", hx+1.5, hy+3, 10.5, 0, math.Pi)
+	ctx.Call("fill")
+
+	e.drawEar(hx-7, hy-12, -1, false)
+	e.drawEar(hx+7, hy-12, 1, false)
+
+	// Focused forward gaze, but with the same eye scale as the idle pose.
+	for _, ex := range []float64{hx - 4.5, hx + 5} {
+		ctx.Set("fillStyle", colCatEye)
+		ctx.Call("beginPath")
+		ctx.Call("arc", ex, hy-1, 5, 0, math.Pi*2)
+		ctx.Call("fill")
+		ctx.Set("fillStyle", colCatPupil)
+		ctx.Call("beginPath")
+		ctx.Call("ellipse", ex, hy-1, 1.5, 4, 0, 0, math.Pi*2)
+		ctx.Call("fill")
+		ctx.Set("fillStyle", "rgba(255,255,255,0.75)")
+		ctx.Call("beginPath")
+		ctx.Call("arc", ex+2, hy-3, 1.8, 0, math.Pi*2)
+		ctx.Call("fill")
+	}
+
+	// Nose and whiskers.
+	ctx.Set("fillStyle", "#d98fa0")
+	ctx.Call("beginPath")
+	ctx.Call("arc", hx+11, hy+5, 2.1, 0, math.Pi*2)
+	ctx.Call("fill")
+	ctx.Set("strokeStyle", "rgba(255,255,255,0.75)")
+	ctx.Set("lineWidth", 1)
+	for _, wy := range []float64{hy + 3, hy + 6, hy + 9} {
+		ctx.Call("beginPath")
+		ctx.Call("moveTo", hx+9, wy)
+		ctx.Call("lineTo", hx+25, wy-1)
+		ctx.Call("stroke")
+	}
+}
+
+func (e *Engine) drawWalkingLeg(hipX, hipY, groundY, stride float64, front, near bool) {
+	ctx := e.ctx
+
+	reach := 5.5
+	legWidth := 8.2
+	footW := 8.8
+	footH := 5.8
+	padW := 6.8
+	padH := 4.1
+	if front {
+		reach = 7.0
+		legWidth = 7.1
+		footW = 7.6
+		footH = 5.0
+		padW = 5.8
+		padH = 3.5
+	}
+	footX := hipX + stride*reach
+	kneeX := hipX + stride*2.6
+	if front {
+		kneeX = hipX + stride*3.3
+	}
+	kneeY := hipY + 10 + math.Abs(stride)*3
+	footLift := math.Max(0, -stride) * 3.2
+	footY := groundY - footLift
+
+	ctx.Set("strokeStyle", colCatBody)
+	ctx.Set("lineWidth", legWidth)
+	if !near {
+		ctx.Set("globalAlpha", 0.82)
+	}
+	ctx.Set("lineCap", "round")
+	ctx.Call("beginPath")
+	ctx.Call("moveTo", hipX, hipY)
+	ctx.Call("quadraticCurveTo", kneeX, kneeY, footX, footY)
+	ctx.Call("stroke")
+
+	ctx.Set("fillStyle", colCatBody)
+	ctx.Call("beginPath")
+	ctx.Call("ellipse", footX, footY, footW, footH, 0, 0, math.Pi*2)
+	ctx.Call("fill")
+	ctx.Set("fillStyle", colCatPoint)
+	ctx.Call("beginPath")
+	ctx.Call("ellipse", footX+0.5, footY+1, padW, padH, 0, 0, math.Pi*2)
+	ctx.Call("fill")
+	ctx.Set("globalAlpha", 1)
+}
+
 func (e *Engine) drawCatSleeping(cx, cy float64) {
 	ctx := e.ctx
 
 	// Ragdoll hallmark: sleeping on back, all four paws dangling in the air
 	breath := math.Sin(e.time * math.Pi * 0.4) // slow ~0.2 Hz breathing
-	belly := breath * 2.2                        // belly expands/contracts
+	belly := breath * 2.2                      // belly expands/contracts
 
 	// Tail hanging off right side, tip sways with breath
 	tipSway := breath * 5
@@ -819,8 +981,8 @@ func (e *Engine) drawCatSleeping(cx, cy float64) {
 func (e *Engine) drawCatEating(cx, cy float64) {
 	ctx := e.ctx
 	// Head bobs toward bowl at ~2 Hz — deeper dip = taking a bite
-	bob := math.Sin(e.time*2.2*math.Pi) // -1..1
-	dip := 10.0 + bob*7.0              // 3..17 px down
+	bob := math.Sin(e.time * 2.2 * math.Pi) // -1..1
+	dip := 10.0 + bob*7.0                   // 3..17 px down
 
 	hx := cx + 14
 	hy := cy - 34 + dip
@@ -906,7 +1068,7 @@ func (e *Engine) drawCatEating(cx, cy float64) {
 func (e *Engine) drawCatDrinking(cx, cy float64) {
 	ctx := e.ctx
 	// Drinking: slower, deeper head dip; tongue extended and held longer
-	bob := math.Sin(e.time*1.4*math.Pi)
+	bob := math.Sin(e.time * 1.4 * math.Pi)
 	dip := 8.0 + bob*9.0
 
 	hx := cx + 14
@@ -1066,24 +1228,24 @@ func (e *Engine) drawCatCrouching(cx, cy float64) {
 // side is -1 (left) or +1 (right). If tuft is true, small inner fur lines are drawn.
 func (e *Engine) drawEar(baseX, baseY float64, side float64, tuft bool) {
 	ctx := e.ctx
-	// Outer ear — wide triangular, seal-colored
-	tipX := baseX + side*4
-	tipY := baseY - 26
+	// Outer ear — smaller, with the whole base anchored into the head.
+	tipX := baseX + side*3
+	tipY := baseY - 20
 	ctx.Set("fillStyle", colCatPoint)
 	ctx.Call("beginPath")
-	ctx.Call("moveTo", baseX-side*10, baseY+2) // wide base inner
-	ctx.Call("lineTo", baseX+side*10, baseY)   // wide base outer
-	ctx.Call("lineTo", tipX, tipY)             // pointed tip
+	ctx.Call("moveTo", baseX-side*6, baseY+1)
+	ctx.Call("quadraticCurveTo", baseX, baseY-4, baseX+side*6, baseY+1)
+	ctx.Call("lineTo", tipX, tipY)
 	ctx.Call("closePath")
 	ctx.Call("fill")
 
-	// Inner ear — pink, inset
-	iBaseX := baseX - side*2
+	// Inner ear — inset and shorter so it stays fully inside the outer ear.
+	iBaseX := baseX - side*1.5
 	ctx.Set("fillStyle", colCatInner)
 	ctx.Call("beginPath")
-	ctx.Call("moveTo", iBaseX-side*5, baseY-1)
-	ctx.Call("lineTo", iBaseX+side*5, baseY-2)
-	ctx.Call("lineTo", tipX+side*1, tipY+8)
+	ctx.Call("moveTo", iBaseX-side*3.2, baseY)
+	ctx.Call("quadraticCurveTo", iBaseX, baseY-2.5, iBaseX+side*3.2, baseY)
+	ctx.Call("lineTo", tipX+side*0.5, tipY+7)
 	ctx.Call("closePath")
 	ctx.Call("fill")
 
@@ -1094,8 +1256,8 @@ func (e *Engine) drawEar(baseX, baseY float64, side float64, tuft bool) {
 		ctx.Set("lineCap", "round")
 		for i := -1; i <= 1; i++ {
 			ctx.Call("beginPath")
-			ctx.Call("moveTo", tipX+float64(i)*3, tipY+4)
-			ctx.Call("lineTo", tipX+float64(i)*5, tipY-5)
+			ctx.Call("moveTo", tipX+float64(i)*2.2, tipY+4)
+			ctx.Call("lineTo", tipX+float64(i)*3.5, tipY-3.5)
 			ctx.Call("stroke")
 		}
 	}
@@ -1103,77 +1265,59 @@ func (e *Engine) drawEar(baseX, baseY float64, side float64, tuft bool) {
 
 func (e *Engine) drawCatPlaying(cx, cy float64) {
 	ctx := e.ctx
+	ctx.Call("save")
+	ctx.Call("translate", cx, cy)
+	ctx.Call("scale", 1.14, 1.14)
+	ctx.Call("translate", -cx, -cy)
+	defer ctx.Call("restore")
 
-	// Toy feather swings at the same rate as drawToy (sin(t*3)*12)
-	swing := math.Sin(e.time*3) * 12
-	featherX := cx + swing
-	featherY := cy - 55.0
+	_, _, featherX, featherY := e.toyFeatherPose(toyX)
+	pawCycle := math.Sin(e.time * 5.4)
+	leftLift := math.Max(0, pawCycle)
+	rightLift := math.Max(0, -pawCycle)
+	bodyBob := math.Abs(pawCycle) * 1.2
+	headTrack := (featherX - toyX) * 0.12
+	tailFlick := math.Sin(e.time*5.0) * 4
+	baseX := cx - 34
 
-	// Body bob in sync with batting
-	bounce := math.Sin(e.time*6) * 3
-
-	// Rapidly flicking tail — excited
-	flick := math.Sin(e.time*11) * 18
+	// Tail behind the cat, slightly animated with excitement.
 	ctx.Set("strokeStyle", colCatPointL)
 	ctx.Set("lineWidth", 8)
 	ctx.Set("lineCap", "round")
 	ctx.Call("beginPath")
-	ctx.Call("moveTo", cx-10, cy-14)
-	ctx.Call("bezierCurveTo", cx-34, cy-8, cx-44+flick, cy-28, cx-24, cy-42)
+	ctx.Call("moveTo", baseX+6, cy-10)
+	ctx.Call("bezierCurveTo", baseX-18, cy-8+tailFlick*0.2, baseX-28, cy-46+tailFlick, baseX-10, cy-58)
 	ctx.Call("stroke")
 	ctx.Set("strokeStyle", colCatPoint)
 	ctx.Set("lineWidth", 6)
 	ctx.Call("beginPath")
-	ctx.Call("moveTo", cx-32, cy-34)
-	ctx.Call("bezierCurveTo", cx-46+flick, cy-42, cx-28, cy-50, cx-24, cy-42)
+	ctx.Call("moveTo", baseX-14, cy-43+tailFlick*0.15)
+	ctx.Call("bezierCurveTo", baseX-24, cy-49+tailFlick*0.2, baseX-14, cy-60, baseX-10, cy-58)
 	ctx.Call("stroke")
 
-	// Back legs — seated
+	// Seated hindquarters, close to the default sitting pose.
 	ctx.Set("fillStyle", colCatBody)
 	ctx.Call("beginPath")
-	ctx.Call("ellipse", cx-10, cy-10, 9, 13, 0.2, 0, math.Pi*2)
+	ctx.Call("ellipse", baseX-7, cy-16+bodyBob*0.2, 10, 14, 0.15, 0, math.Pi*2)
 	ctx.Call("fill")
 	ctx.Set("fillStyle", colCatPoint)
 	ctx.Call("beginPath")
-	ctx.Call("ellipse", cx-9, cy-2, 9, 5, 0.1, 0, math.Pi*2)
+	ctx.Call("ellipse", baseX-6, cy-4+bodyBob*0.1, 9, 5.2, 0.1, 0, math.Pi*2)
 	ctx.Call("fill")
 
-	// Body — upright, slightly forward-leaning
+	// Upright seated body, only slightly leaning toward the toy.
 	ctx.Set("fillStyle", colCatBody)
 	ctx.Call("beginPath")
-	ctx.Call("ellipse", cx, cy-28+bounce, 18, 26, 0.12, 0, math.Pi*2)
+	ctx.Call("ellipse", baseX-1, cy-28+bodyBob, 22, 28, -0.08, 0, math.Pi*2)
 	ctx.Call("fill")
 	ctx.Set("fillStyle", colCatChest)
 	ctx.Call("beginPath")
-	ctx.Call("ellipse", cx+4, cy-26+bounce, 10, 16, 0.08, 0, math.Pi*2)
+	ctx.Call("ellipse", baseX+3, cy-25+bodyBob*0.9, 12, 17, -0.06, 0, math.Pi*2)
 	ctx.Call("fill")
 
-	// Two front legs batting the feather — alternating phase
-	for leg, phase := range []float64{0.6, 0.0} {
-		sway := math.Sin(e.time*6+phase) * 10
-		pawX := featherX + float64(leg-0)*4 - 2
-		pawY := featherY + 12 + sway
-		shoulderX := cx + 8
-		shoulderY := cy - 46 + bounce
-		ctx.Set("strokeStyle", colCatBody)
-		ctx.Set("lineWidth", 8)
-		ctx.Call("beginPath")
-		ctx.Call("moveTo", shoulderX, shoulderY)
-		ctx.Call("quadraticCurveTo", shoulderX+10, shoulderY-18, pawX, pawY)
-		ctx.Call("stroke")
-		ctx.Set("fillStyle", colCatBody)
-		ctx.Call("beginPath")
-		ctx.Call("ellipse", pawX, pawY, 8, 5, -0.4, 0, math.Pi*2)
-		ctx.Call("fill")
-		ctx.Set("fillStyle", colCatPoint)
-		ctx.Call("beginPath")
-		ctx.Call("ellipse", pawX+2, pawY, 5, 3.5, -0.4, 0, math.Pi*2)
-		ctx.Call("fill")
-	}
-
-	// Head — side profile, tilted up tracking feather
-	hx := cx + 8.0
-	hy := cy - 64 + bounce
+	// Head turned toward the toy in side view.
+	hx := baseX + 15.0 + headTrack
+	hy := cy - 52.0 + bodyBob*0.5
 	ctx.Set("fillStyle", colCatBody)
 	ctx.Call("beginPath")
 	ctx.Call("arc", hx, hy, 17, 0, math.Pi*2)
@@ -1187,32 +1331,71 @@ func (e *Engine) drawCatPlaying(cx, cy float64) {
 	ctx.Call("ellipse", hx+7, hy-1, 6, 4.5, 0.2, 0, math.Pi*2)
 	ctx.Call("fill")
 	e.drawEar(hx+5, hy-13, 1, true)
-	// Wide excited eye tracking feather
+
+	// One visible eye in side view.
 	eyeX := hx + 8
 	eyeY := hy - 2
 	ctx.Set("fillStyle", colCatEye)
 	ctx.Call("beginPath")
-	ctx.Call("arc", eyeX, eyeY, 5.5, 0, math.Pi*2)
+	ctx.Call("arc", eyeX, eyeY, 5.2, 0, math.Pi*2)
 	ctx.Call("fill")
 	ctx.Set("fillStyle", colCatPupil)
-	// Pupil dilated with excitement — round
 	ctx.Call("beginPath")
-	ctx.Call("arc", eyeX+0.5, eyeY, 3.5, 0, math.Pi*2)
+	ctx.Call("ellipse", eyeX+0.5, eyeY, 2.0, 4.2, 0, 0, math.Pi*2)
 	ctx.Call("fill")
 	ctx.Set("fillStyle", "rgba(255,255,255,0.75)")
 	ctx.Call("beginPath")
 	ctx.Call("arc", eyeX+2, eyeY-2, 1.5, 0, math.Pi*2)
 	ctx.Call("fill")
-	// Whiskers — forward and alert
+
+	// Nose
+	ctx.Set("fillStyle", "#d98fa0")
+	ctx.Call("beginPath")
+	ctx.Call("arc", hx+11, hy+5, 2.1, 0, math.Pi*2)
+	ctx.Call("fill")
+
+	// Whiskers — angled forward in hunt/play focus.
 	ctx.Set("strokeStyle", "rgba(255,255,255,0.75)")
 	ctx.Set("lineWidth", 1)
 	ctx.Set("lineCap", "round")
 	for _, wy := range []float64{hy + 2, hy + 5, hy + 8} {
 		ctx.Call("beginPath")
-		ctx.Call("moveTo", hx+10, wy)
-		ctx.Call("lineTo", hx+28, wy-1)
+		ctx.Call("moveTo", hx+9, wy)
+		ctx.Call("lineTo", hx+27, wy-2)
 		ctx.Call("stroke")
 	}
+
+	// Two front paws alternately reach toward the toy.
+	shoulderX := baseX + 6
+	shoulderY := cy - 36 + bodyBob*0.5
+	type pawSpec struct {
+		lift  float64
+		phase float64
+	}
+	for _, paw := range []pawSpec{
+		{lift: leftLift, phase: -1.5},
+		{lift: rightLift, phase: 1.5},
+	} {
+		pawX := featherX - 16 + paw.lift*10
+		pawY := featherY + 10 - paw.lift*12 + paw.phase
+		ctx.Set("strokeStyle", colCatBody)
+		ctx.Set("lineWidth", 8)
+		ctx.Set("lineCap", "round")
+		ctx.Call("beginPath")
+		ctx.Call("moveTo", shoulderX, shoulderY)
+		ctx.Call("quadraticCurveTo", baseX+18+paw.lift*7, cy-30-paw.lift*8, pawX, pawY)
+		ctx.Call("stroke")
+		ctx.Set("fillStyle", colCatBody)
+		ctx.Call("beginPath")
+		ctx.Call("ellipse", pawX, pawY, 8.5, 5.3, -0.25, 0, math.Pi*2)
+		ctx.Call("fill")
+		ctx.Set("fillStyle", colCatPoint)
+		ctx.Call("beginPath")
+		ctx.Call("ellipse", pawX+1.0, pawY+0.7, 6.0, 3.6, -0.25, 0, math.Pi*2)
+		ctx.Call("fill")
+	}
+
+	_ = featherY
 }
 
 func (e *Engine) drawCatScratching(cx, cy float64) {
@@ -1942,7 +2125,7 @@ func (e *Engine) renderVictory() {
 	for i := 0; i < 20; i++ {
 		phase := e.time*2 + float64(i)*0.8
 		x := canvasW/2 + math.Sin(phase)*200*float64(i%3+1)/3
-		y := (e.time*60+float64(i*30))
+		y := (e.time*60 + float64(i*30))
 		for y > canvasH {
 			y -= canvasH
 		}
