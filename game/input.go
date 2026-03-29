@@ -18,15 +18,26 @@ func (e *Engine) registerInput() {
 					e.state = StatePaused
 				case StatePaused:
 					e.state = StatePlaying
+				case StateScoreboard:
+					e.enterMainMenu()
 				}
 			case "KeyQ":
 				if e.state == StatePaused {
 					e.finishRunToMenu()
 				}
+			case "KeyH":
+				switch e.state {
+				case StateMainMenu:
+					e.enterScoreboard()
+				case StateScoreboard:
+					e.enterMainMenu()
+				}
 			case "Space", "Enter":
 				switch e.state {
 				case StateMainMenu:
 					e.newGame()
+				case StateScoreboard:
+					e.enterMainMenu()
 				case StateNight:
 					if e.nightDone {
 						e.nextDay()
@@ -50,7 +61,7 @@ func (e *Engine) registerInput() {
 				}
 			}
 			switch code {
-			case "Space", "Enter", "KeyP", "KeyQ", "KeyS", "Escape":
+			case "Space", "Enter", "KeyP", "KeyQ", "KeyS", "KeyH", "Escape":
 				args[0].Call("preventDefault")
 			}
 			return nil
@@ -97,7 +108,13 @@ func (e *Engine) registerInput() {
 func (e *Engine) handleClick(mx, my float64) {
 	switch e.state {
 	case StateMainMenu:
+		if e.menuScoresHit(mx, my) {
+			e.enterScoreboard()
+			return
+		}
 		e.newGame()
+	case StateScoreboard:
+		e.enterMainMenu()
 	case StateAlert:
 		e.dismissAlert()
 	case StateNight:
@@ -109,6 +126,14 @@ func (e *Engine) handleClick(mx, my float64) {
 	case StatePlaying:
 		e.handlePlayClick(mx, my)
 	}
+}
+
+func (e *Engine) menuScoresHit(mx, my float64) bool {
+	x := canvasW/2 - 160.0
+	y := 548.0
+	w := 320.0
+	h := 34.0
+	return mx >= x && mx <= x+w && my >= y && my <= y+h
 }
 
 func (e *Engine) handlePlayClick(mx, my float64) {

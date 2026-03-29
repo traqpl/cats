@@ -13,6 +13,7 @@ type GameState int
 
 const (
 	StateMainMenu GameState = iota
+	StateScoreboard
 	StatePlaying
 	StatePaused
 	StateNight
@@ -213,7 +214,7 @@ func NewEngine(canvas js.Value) *Engine {
 	}
 	e.initObjects()
 	e.enterMainMenu()
-	e.fetchScores()
+	e.fetchScores(5)
 	return e
 }
 
@@ -286,6 +287,13 @@ func (e *Engine) enterMainMenu() {
 	e.state = StateMainMenu
 	e.flash = nil
 	e.hearts = nil
+}
+
+func (e *Engine) enterScoreboard() {
+	e.state = StateScoreboard
+	e.flash = nil
+	e.hearts = nil
+	e.fetchScores(20)
 }
 
 func (e *Engine) finishRunToMenu() {
@@ -444,6 +452,8 @@ func (e *Engine) audioScene() string {
 	switch e.state {
 	case StateMainMenu:
 		return "menu"
+	case StateScoreboard:
+		return "menu"
 	case StateNight:
 		return "night"
 	case StateGameOver:
@@ -459,6 +469,8 @@ func (e *Engine) stateName() string {
 	switch e.state {
 	case StateMainMenu:
 		return "menu"
+	case StateScoreboard:
+		return "scoreboard"
 	case StatePlaying:
 		return "playing"
 	case StatePaused:
@@ -578,8 +590,11 @@ func catStateForObj(i int) (CatState, float64) {
 	return CatIdle, 0
 }
 
-func (e *Engine) fetchScores() {
-	promise := js.Global().Call("fetch", "/api/scores?n=5")
+func (e *Engine) fetchScores(limit int) {
+	if limit <= 0 {
+		limit = 5
+	}
+	promise := js.Global().Call("fetch", "/api/scores?n="+itoa(limit))
 	var onResp js.Func
 	var onJSON js.Func
 	var onErr js.Func
@@ -741,7 +756,7 @@ func (e *Engine) submitScore(nick string, score, days, runSerial int) {
 		if runSerial == e.runSerial {
 			e.submittedRunSerial = runSerial
 		}
-		e.fetchScores()
+		e.fetchScores(20)
 		release()
 		return nil
 	})

@@ -18,6 +18,9 @@ func (e *Engine) Render() {
 	case StateMainMenu:
 		e.renderMainMenu()
 		return
+	case StateScoreboard:
+		e.renderScoreboard()
+		return
 	}
 
 	// Base game view (all non-menu states)
@@ -2210,11 +2213,16 @@ func (e *Engine) renderMainMenu() {
 	ctx.Set("globalAlpha", 1)
 	ctx.Set("shadowBlur", 0)
 
+	ctx.Set("fillStyle", "#9ed0ff")
+	ctx.Set("font", "13px monospace")
+	ctx.Set("textAlign", "center")
+	ctx.Call("fillText", "Press H or click Hall of Fame", canvasW/2, 554)
+
 	// Last result hint
 	if e.lastScore > 0 {
 		ctx.Set("fillStyle", "rgba(200,180,120,0.7)")
 		ctx.Set("font", "12px monospace")
-		ctx.Call("fillText", fmt.Sprintf("Last game: %d pts, day %d", e.lastScore, e.lastDays), canvasW/2, 554)
+		ctx.Call("fillText", fmt.Sprintf("Last game: %d pts, day %d", e.lastScore, e.lastDays), canvasW/2, 574)
 	}
 
 	e.renderMenuScores()
@@ -2425,18 +2433,26 @@ func (e *Engine) renderMenuCards() {
 
 func (e *Engine) renderMenuScores() {
 	ctx := e.ctx
-	if len(e.topScores) == 0 {
-		return
-	}
 	ctx.Set("fillStyle", "rgba(0,0,0,0.4)")
 	roundRect(ctx, canvasW/2-160, 548, 320, 34, 8)
 	ctx.Call("fill")
+
+	ctx.Set("strokeStyle", "rgba(255,210,90,0.35)")
+	ctx.Set("lineWidth", 1.5)
+	roundRect(ctx, canvasW/2-160, 548, 320, 34, 8)
+	ctx.Call("stroke")
 
 	ctx.Set("textAlign", "center")
 	ctx.Set("fillStyle", "#c0a860")
 	ctx.Set("font", "12px monospace")
 
-	text := "🏆 "
+	text := "🏆 Hall of Fame"
+	if len(e.topScores) == 0 {
+		ctx.Call("fillText", text+"  (H)", canvasW/2, 570)
+		return
+	}
+
+	text += "  "
 	for i, s := range e.topScores {
 		if i > 0 {
 			text += "  "
@@ -2447,6 +2463,74 @@ func (e *Engine) renderMenuScores() {
 		}
 	}
 	ctx.Call("fillText", text, canvasW/2, 570)
+}
+
+func (e *Engine) renderScoreboard() {
+	ctx := e.ctx
+	e.renderMenuBg()
+
+	ctx.Set("textAlign", "center")
+	ctx.Set("fillStyle", "#ffd700")
+	ctx.Set("font", "bold 40px 'Segoe UI', Arial, sans-serif")
+	ctx.Call("fillText", "Hall of Fame", canvasW/2, 108)
+
+	ctx.Set("fillStyle", "#d8c090")
+	ctx.Set("font", "14px monospace")
+	ctx.Call("fillText", "Click, Space, Esc or H to return", canvasW/2, 136)
+
+	px, py := canvasW/2-230.0, 165.0
+	pw, ph := 460.0, 340.0
+	ctx.Set("fillStyle", "rgba(20,14,6,0.90)")
+	roundRect(ctx, px, py, pw, ph, 16)
+	ctx.Call("fill")
+	ctx.Set("strokeStyle", "rgba(255,210,90,0.45)")
+	ctx.Set("lineWidth", 2)
+	roundRect(ctx, px, py, pw, ph, 16)
+	ctx.Call("stroke")
+
+	ctx.Set("fillStyle", "#ffe4a3")
+	ctx.Set("font", "bold 16px monospace")
+	ctx.Set("textAlign", "left")
+	ctx.Call("fillText", "#", px+28, py+36)
+	ctx.Call("fillText", "Nick", px+68, py+36)
+	ctx.Call("fillText", "Score", px+170, py+36)
+	ctx.Call("fillText", "Day", px+300, py+36)
+	ctx.Call("fillText", "When", px+366, py+36)
+
+	if len(e.topScores) == 0 {
+		ctx.Set("fillStyle", "#c8b080")
+		ctx.Set("font", "15px 'Segoe UI', Arial, sans-serif")
+		ctx.Set("textAlign", "center")
+		ctx.Call("fillText", "No scores yet. Be the first cat legend.", canvasW/2, py+184)
+		return
+	}
+
+	ctx.Set("font", "14px monospace")
+	for i, s := range e.topScores {
+		if i >= 10 {
+			break
+		}
+		y := py + 72 + float64(i)*25
+		if i%2 == 0 {
+			ctx.Set("fillStyle", "rgba(255,255,255,0.04)")
+			roundRect(ctx, px+16, y-16, pw-32, 22, 6)
+			ctx.Call("fill")
+		}
+
+		ctx.Set("fillStyle", "#f5e6c8")
+		ctx.Call("fillText", fmt.Sprintf("%2d", i+1), px+28, y)
+		ctx.Call("fillText", s.Nick, px+68, y)
+		ctx.Call("fillText", itoa(s.Score), px+170, y)
+		ctx.Call("fillText", itoa(s.Days), px+300, y)
+		ctx.Call("fillText", scoreTimestampLabel(s.Timestamp), px+366, y)
+	}
+}
+
+func scoreTimestampLabel(ts string) string {
+	if len(ts) >= 10 {
+		return ts[:10]
+	}
+	return ts
 }
 
 // ── utility ───────────────────────────────────────────────────────────────────
