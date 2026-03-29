@@ -1,6 +1,12 @@
 name: Nginx Proxy
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "nginx/**"
+      - ".github/workflows/nginx-proxy.yml"
   workflow_dispatch:
 
 permissions:
