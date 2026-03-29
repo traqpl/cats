@@ -8,29 +8,52 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-<div id="toolbar">
-  <span class="title">🐱 CATS</span>
-  <div class="controls">
-    <span id="speedLabel"></span>
-    <button id="muteBtn" title="Mute / Unmute">♫</button>
+<div id="app">
+  <div id="toolbar">
+    <span class="title">🐱 CATS</span>
+    <div class="controls">
+      <span id="speedLabel"></span>
+      <button id="muteBtn" title="Mute / Unmute">♫</button>
+    </div>
   </div>
-</div>
 
-<div style="position:relative;">
-  <canvas id="gameCanvas" width="800" height="590"></canvas>
-  <div id="loading">
-    <div class="spinner"></div>
-    Loading…
+  <div id="gameStage">
+    <canvas id="gameCanvas" width="800" height="590"></canvas>
+    <div id="loading">
+      <div class="spinner"></div>
+      Loading…
+    </div>
   </div>
-</div>
 
-<p id="hint">P — pause &nbsp;|&nbsp; S — speed &nbsp;|&nbsp; Q — quit to menu &nbsp;|&nbsp; click to interact</p>
+  <p id="hint">P — pause &nbsp;|&nbsp; S — speed &nbsp;|&nbsp; Q — quit to menu &nbsp;|&nbsp; click to interact</p>
+</div>
 
 <script src="wasm_exec.js"></script>
 <script>
 // ── WASM loader ──────────────────────────────────────────────────────────────
+const appEl = document.getElementById("app");
+const toolbarEl = document.getElementById("toolbar");
+const stageEl = document.getElementById("gameStage");
 const loadingEl = document.getElementById("loading");
+
+function resizeGameViewport() {
+  const sidePad = window.innerWidth <= 900 ? 16 : 32;
+  const reservedHeight = window.innerWidth <= 900 ? 138 : 96;
+  const maxWidth = Math.min(800, window.innerWidth - sidePad);
+  const maxHeight = Math.min(590, window.innerHeight - reservedHeight);
+  const scale = Math.max(0.45, Math.min(maxWidth / 800, maxHeight / 590, 1));
+  const width = Math.round(800 * scale);
+  const height = Math.round(590 * scale);
+
+  appEl.style.width = width + "px";
+  toolbarEl.style.width = width + "px";
+  stageEl.style.width = width + "px";
+  stageEl.style.height = height + "px";
+}
+
+window.addEventListener("resize", resizeGameViewport);
+window.addEventListener("orientationchange", resizeGameViewport);
+resizeGameViewport();
 
 function showLoadError(err) {
   console.error("WASM load failed:", err);
