@@ -2175,6 +2175,7 @@ func (e *Engine) renderMainMenu() {
 	ctx := e.ctx
 
 	e.renderMenuBg()
+	e.renderMenuTicker()
 	e.renderMenuCat()
 
 	// Title with glow
@@ -2200,7 +2201,7 @@ func (e *Engine) renderMainMenu() {
 	ctx.Set("fillStyle", "#80c0ff")
 	ctx.Set("font", "13px monospace")
 	ctx.Set("textAlign", "center")
-	ctx.Call("fillText", fmt.Sprintf("Speed: ×%.0f  (S to change)", e.speed), canvasW/2, 494)
+	ctx.Call("fillText", fmt.Sprintf("Speed: ×%.0f  (S to change)", e.speed), canvasW/2, 470)
 
 	// Start button with glow
 	pulse := 0.72 + 0.28*math.Sin(e.time*2.8)
@@ -2209,23 +2210,68 @@ func (e *Engine) renderMainMenu() {
 	ctx.Set("shadowColor", "rgba(255,220,0,0.9)")
 	ctx.Set("fillStyle", "#ffe44d")
 	ctx.Set("font", "bold 22px 'Segoe UI', Arial, sans-serif")
-	ctx.Call("fillText", "▶  Press Space or click to start", canvasW/2, 532)
+	ctx.Call("fillText", "▶  Press Space or click to start", canvasW/2, 500)
 	ctx.Set("globalAlpha", 1)
 	ctx.Set("shadowBlur", 0)
 
 	ctx.Set("fillStyle", "#9ed0ff")
 	ctx.Set("font", "13px monospace")
 	ctx.Set("textAlign", "center")
-	ctx.Call("fillText", "Press H or click Hall of Fame", canvasW/2, 554)
+	ctx.Call("fillText", "Press H or click Hall of Fame", canvasW/2, 522)
 
 	// Last result hint
 	if e.lastScore > 0 {
 		ctx.Set("fillStyle", "rgba(200,180,120,0.7)")
 		ctx.Set("font", "12px monospace")
-		ctx.Call("fillText", fmt.Sprintf("Last game: %d pts, day %d", e.lastScore, e.lastDays), canvasW/2, 574)
+		ctx.Call("fillText", fmt.Sprintf("Last game: %d pts, day %d", e.lastScore, e.lastDays), canvasW/2, 540)
 	}
 
 	e.renderMenuScores()
+}
+
+func (e *Engine) renderMenuTicker() {
+	ctx := e.ctx
+	x, y, w, h := 36.0, 18.0, canvasW-72.0, 28.0
+
+	ctx.Set("fillStyle", "rgba(15,10,4,0.55)")
+	roundRect(ctx, x, y, w, h, 10)
+	ctx.Call("fill")
+	ctx.Set("strokeStyle", "rgba(255,210,90,0.22)")
+	ctx.Set("lineWidth", 1.2)
+	roundRect(ctx, x, y, w, h, 10)
+	ctx.Call("stroke")
+
+	text := "  HALL OF FAME  "
+	if len(e.topScores) == 0 {
+		text += "  NO SCORES YET  PRESS H TO OPEN  "
+	} else {
+		for i, s := range e.topScores {
+			if i >= 8 {
+				break
+			}
+			text += fmt.Sprintf("  #%d %s ★%d  ", i+1, s.Nick, s.Score)
+		}
+	}
+
+	ctx.Call("save")
+	ctx.Call("beginPath")
+	ctx.Call("rect", x+8, y+3, w-16, h-6)
+	ctx.Call("clip")
+	ctx.Set("fillStyle", "#f6d98e")
+	ctx.Set("font", "13px monospace")
+	ctx.Set("textAlign", "left")
+
+	metrics := ctx.Call("measureText", text)
+	textW := metrics.Get("width").Float()
+	if textW < w+40 {
+		text += text
+		metrics = ctx.Call("measureText", text)
+		textW = metrics.Get("width").Float()
+	}
+	offset := math.Mod(e.time*48, textW)
+	ctx.Call("fillText", text, x+w-offset, y+18)
+	ctx.Call("fillText", text, x+w-offset+textW+32, y+18)
+	ctx.Call("restore")
 }
 
 func (e *Engine) renderMenuBg() {
@@ -2468,6 +2514,7 @@ func (e *Engine) renderMenuScores() {
 func (e *Engine) renderScoreboard() {
 	ctx := e.ctx
 	e.renderMenuBg()
+	e.renderMenuTicker()
 
 	ctx.Set("textAlign", "center")
 	ctx.Set("fillStyle", "#ffd700")
