@@ -4,7 +4,13 @@ on:
   push:
     branches:
       - "**"
+    paths-ignore:
+      - "nginx/**"
+      - ".github/workflows/nginx-proxy.yml"
   pull_request:
+    paths-ignore:
+      - "nginx/**"
+      - ".github/workflows/nginx-proxy.yml"
 
 permissions:
   contents: read
