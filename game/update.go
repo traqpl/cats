@@ -4,8 +4,8 @@ package main
 
 import "math"
 
-const inGameDayStart = 0.0   // 08:00
-const inGameNightAt = 840.0  // 22:00 (14 hours × 60 min)
+const inGameDayStart = 0.0  // 08:00
+const inGameNightAt = 840.0 // 22:00 (14 hours × 60 min)
 
 func (e *Engine) Update(dt float64) {
 	e.time += dt
@@ -65,7 +65,7 @@ func (e *Engine) updatePlaying(dt float64) {
 	// Fire alert if threshold exceeded and no active alert
 	if e.activeAlert == nil && len(e.pendingAlerts) == 0 {
 		for i := 0; i < 8; i++ {
-			if e.alertTimers[i] >= AlertTime {
+			if e.alertTimers[i] >= cfg.AlertTime {
 				e.alertTimers[i] = 0
 				e.pendingAlerts = append(e.pendingAlerts, Alert{NeedIdx: i, Message: alertMessages[i]})
 				e.dayHadAlert = true
@@ -84,7 +84,7 @@ func (e *Engine) updatePlaying(dt float64) {
 
 	// Game over — need at 0 for too long
 	for i := 0; i < 8; i++ {
-		if e.zeroTimers[i] >= CriticalTime {
+		if e.zeroTimers[i] >= cfg.CriticalTime {
 			e.lastScore = e.score
 			e.lastDays = e.day
 			e.meowCooldown = 0
