@@ -48,7 +48,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false
 
       - name: Run tests
         run: go test ./...
@@ -58,3 +58,23 @@ jobs:
 
       - name: Build WASM game
         run: GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o .artifacts/game.wasm ./game/
+
+      - name: Cleanup runner workspace
+        if: always()
+        run: |
+          go clean -cache -testcache -modcache || true
+          sudo rm -rf \
+            "$TMPDIR" \
+            "$GOCACHE" \
+            "$GOMODCACHE" \
+            "$GITHUB_WORKSPACE/.artifacts" \
+            "$GITHUB_WORKSPACE/.cache" \
+            "$GITHUB_WORKSPACE/.tmp"
+          sudo find "$GITHUB_WORKSPACE" -mindepth 1 -maxdepth 1 \
+            ! -name '_temp' \
+            ! -name '_actions' \
+            ! -name '_tool' \
+            -exec rm -rf {} +
+          if [ -n "${RUNNER_TOOL_CACHE:-}" ]; then
+            sudo rm -rf "${RUNNER_TOOL_CACHE}/go"
+          fi
